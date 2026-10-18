@@ -1,0 +1,266 @@
+<title>NBA Quarter Predictor</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: one column, an arena line-score board as the centerpiece, controls above, accuracy below. */
+:root {
+  --bg: #f5f4f1;
+  --panel: #ffffff;
+  --ink: #1b2230;
+  --muted: #5e6675;
+  --line: #dddad3;
+  --accent: #d4581c;
+  --accent-soft: #f6e2d6;
+  --away: #2f5d8a;
+  --board: #1b2230;
+  --board-ink: #f3efe7;
+  --board-muted: #9aa3b2;
+  --display: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #12161d; --panel: #1a1f28; --ink: #e8e6e1; --muted: #9aa1ad; --line: #2c333f;
+    --accent: #f07a3e; --accent-soft: #3a261c; --away: #7fb0e0;
+    --board: #0b0e13; --board-ink: #f3efe7; --board-muted: #8b94a3; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #12161d; --panel: #1a1f28; --ink: #e8e6e1; --muted: #9aa1ad; --line: #2c333f;
+  --accent: #f07a3e; --accent-soft: #3a261c; --away: #7fb0e0;
+  --board: #0b0e13; --board-ink: #f3efe7; --board-muted: #8b94a3; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 48px;
+}
+main { max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 28px; }
+h1 { font-family: var(--display); font-weight: 700; font-size: clamp(30px, 6vw, 42px); line-height: 1; margin: 0; letter-spacing: 0.01em; text-wrap: balance; }
+h2 { font-family: var(--display); font-weight: 600; font-size: 22px; margin: 0; letter-spacing: 0.02em; }
+.sub { color: var(--muted); margin: 8px 0 0; max-width: 60ch; }
+.label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); font-weight: 600; }
+
+.controls { display: grid; grid-template-columns: 1fr auto 1fr; gap: 14px; align-items: end; }
+.side { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.at { font-family: var(--display); font-size: 24px; color: var(--muted); padding-bottom: 46px; }
+select {
+  font: 600 16px var(--body); color: var(--ink); background: var(--panel);
+  border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; width: 100%;
+}
+select:focus-visible, input:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.rest { display: flex; gap: 4px; }
+.rest button {
+  flex: 1; font: 500 13px var(--body); color: var(--muted); background: var(--panel);
+  border: 1px solid var(--line); border-radius: 5px; padding: 6px 0; cursor: pointer;
+}
+.rest button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.side.home .rest button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.side.away .rest button[aria-pressed="true"] { background: var(--away); border-color: var(--away); color: #fff; }
+
+.board { background: var(--board); color: var(--board-ink); border-radius: 10px; padding: 18px 18px 14px; }
+.board-scroll { overflow-x: auto; }
+table.ls { border-collapse: collapse; width: 100%; min-width: 520px; font-variant-numeric: tabular-nums; }
+.ls th { font: 600 13px var(--display); letter-spacing: 0.12em; color: var(--board-muted); text-align: center; padding: 0 6px 10px; }
+.ls th:first-child { text-align: left; }
+.ls td { text-align: center; padding: 8px 6px; border-top: 1px solid rgba(255,255,255,0.08); }
+.ls td:first-child { text-align: left; }
+.ls .team { font: 700 26px var(--display); letter-spacing: 0.03em; }
+.ls .team small { display: block; font: 400 12px var(--body); color: var(--board-muted); letter-spacing: 0; }
+.ls .pts { font: 600 30px var(--display); }
+.ls .pts.lead { color: #ffb37f; }
+.ls td.game, .ls th.game { border-left: 1px solid rgba(255,255,255,0.18); }
+.ls .meta td { font: 500 14px var(--mono); color: var(--board-ink); }
+.ls .meta td:first-child { font: 600 12px var(--body); text-transform: uppercase; letter-spacing: 0.08em; color: var(--board-muted); }
+.ls .win { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; }
+.prob { width: 46px; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.15); overflow: hidden; }
+.prob i { display: block; height: 100%; background: #ffb37f; }
+.prob.away-w i { background: #8fc0ee; }
+.board-note { color: var(--board-muted); font-size: 12.5px; margin: 12px 0 0; }
+
+.acc { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+.acc-scroll { overflow-x: auto; }
+table.at-t { border-collapse: collapse; width: 100%; min-width: 480px; font-variant-numeric: tabular-nums; font-size: 14px; }
+.at-t th { text-align: right; font-weight: 600; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; padding: 0 8px 8px; }
+.at-t td { text-align: right; padding: 7px 8px; border-top: 1px solid var(--line); }
+.at-t th:first-child, .at-t td:first-child { text-align: left; }
+.at-t .good { color: var(--accent); font-weight: 600; }
+.at-t .base { color: var(--muted); }
+.acc p { margin: 0; color: var(--muted); font-size: 13.5px; max-width: 70ch; }
+.limits { display: flex; flex-direction: column; gap: 6px; padding-left: 18px; margin: 0; color: var(--muted); font-size: 13.5px; }
+table.ls.compact { display: none; min-width: 0; }
+.ls.compact th, .ls.compact td { padding: 9px 4px; }
+.ls.compact th { padding-top: 0; }
+.ls.compact td:first-child { font: 600 15px var(--display); letter-spacing: 0.1em; color: var(--board-muted); }
+.ls.compact .sc { font: 600 22px var(--display); white-space: nowrap; }
+.ls.compact .sc b { color: #ffb37f; font-weight: 600; }
+.ls.compact .meta-c { font: 500 13px var(--mono); }
+.ls.compact tr.game-row td { border-top: 1px solid rgba(255,255,255,0.3); }
+@media (max-width: 600px) {
+  .controls { grid-template-columns: 1fr; }
+  .at { display: none; }
+  .board { padding: 14px 12px 12px; }
+  table.ls.wide { display: none; }
+  table.ls.compact { display: table; }
+}
+</style>
+
+<main>
+  <header>
+    <div class="label">Per-quarter forecast</div>
+    <h1>NBA Quarter Predictor</h1>
+    <p class="sub">Pick a matchup to see who the model expects to win each quarter, by how much, and how many points get scored.</p>
+  </header>
+
+  <section class="controls" aria-label="Matchup">
+    <div class="side away">
+      <label class="label" for="away">Away team</label>
+      <select id="away"></select>
+      <div class="rest" id="away-rest" role="group" aria-label="Away team days of rest"></div>
+    </div>
+    <div class="at" aria-hidden="true">at</div>
+    <div class="side home">
+      <label class="label" for="home">Home team</label>
+      <select id="home"></select>
+      <div class="rest" id="home-rest" role="group" aria-label="Home team days of rest"></div>
+    </div>
+  </section>
+
+  <section class="board" aria-live="polite">
+    <div class="board-scroll"><table class="ls wide" id="board"></table><table class="ls compact" id="board-c"></table></div>
+    <p class="board-note" id="board-note"></p>
+  </section>
+
+  <section class="acc">
+    <h2>How accurate is it?</h2>
+    <div class="acc-scroll"><table class="at-t" id="acc"></table></div>
+    <p id="acc-note"></p>
+    <ul class="limits">
+      <li>Uses team form only: points scored and allowed in each quarter over roughly the last 8 and 30 games, plus days of rest. Injuries, lineups and trades are not included.</li>
+      <li id="through"></li>
+    </ul>
+  </section>
+</main>
+
+<script>
+const DATA = __MODEL__;
+const NAMES = {ATL:"Atlanta Hawks",BOS:"Boston Celtics",BKN:"Brooklyn Nets",CHA:"Charlotte Hornets",CHI:"Chicago Bulls",CLE:"Cleveland Cavaliers",DAL:"Dallas Mavericks",DEN:"Denver Nuggets",DET:"Detroit Pistons",GSW:"Golden State Warriors",HOU:"Houston Rockets",IND:"Indiana Pacers",LAC:"LA Clippers",LAL:"Los Angeles Lakers",MEM:"Memphis Grizzlies",MIA:"Miami Heat",MIL:"Milwaukee Bucks",MIN:"Minnesota Timberwolves",NOP:"New Orleans Pelicans",NYK:"New York Knicks",OKC:"Oklahoma City Thunder",ORL:"Orlando Magic",PHI:"Philadelphia 76ers",PHX:"Phoenix Suns",POR:"Portland Trail Blazers",SAC:"Sacramento Kings",SAS:"San Antonio Spurs",TOR:"Toronto Raptors",UTA:"Utah Jazz",WAS:"Washington Wizards"};
+const Q = [1, 2, 3, 4], SPANS = [8, 30];
+const REST = [[1, "B2B"], [2, "1 day"], [3, "2 days"], [4, "3+"]];
+const state = { away: "BOS", home: "LAL", awayRest: 2, homeRest: 2 };
+
+function features(home, away, homeRest, awayRest) {
+  const f = { home_rest: homeRest, away_rest: awayRest };
+  for (const [side, team] of [["home", home], ["away", away]])
+    DATA.form_cols.forEach((c, i) => { f[`${side}_${c}`] = DATA.teams[team][i]; });
+  for (const s of SPANS) for (const q of Q) {
+    f[`exp_home_q${q}_e${s}`] = (f[`home_pts_q${q}_e${s}`] + f[`away_opp_q${q}_e${s}`]) / 2;
+    f[`exp_away_q${q}_e${s}`] = (f[`away_pts_q${q}_e${s}`] + f[`home_opp_q${q}_e${s}`]) / 2;
+  }
+  f.home_b2b = homeRest <= 1 ? 1 : 0;
+  f.away_b2b = awayRest <= 1 ? 1 : 0;
+  return DATA.features.map(n => f[n]);
+}
+const linear = (m, x) => m.b + m.w.reduce((s, w, i) => s + w * x[i], 0);
+const sigmoid = z => 1 / (1 + Math.exp(-z));
+function normCdf(x) { // Abramowitz-Stegun approximation
+  const t = 1 / (1 + 0.2316419 * Math.abs(x));
+  const d = 0.3989423 * Math.exp(-x * x / 2);
+  const p = d * t * (0.3193815 + t * (-0.3565638 + t * (1.781478 + t * (-1.821256 + t * 1.330274))));
+  return x > 0 ? 1 - p : p;
+}
+
+function predict(home, away, homeRest, awayRest) {
+  const x = features(home, away, homeRest, awayRest);
+  const rows = Q.map(q => ({
+    label: `Q${q}`,
+    spread: linear(DATA.models[`spread_q${q}`], x),
+    total: linear(DATA.models[`total_q${q}`], x),
+    pHome: sigmoid(linear(DATA.models[`win_q${q}`], x)),
+  }));
+  const spread = rows.reduce((s, r) => s + r.spread, 0), total = rows.reduce((s, r) => s + r.total, 0);
+  rows.push({ label: "Game", spread, total, pHome: normCdf(spread / DATA.game_spread_resid_sd) });
+  return rows;
+}
+
+const fmtLine = (team, homeSpread) => {
+  const v = -homeSpread;
+  return Math.abs(v) < 0.05 ? "PK" : `${team} ${v > 0 ? "+" : "−"}${Math.abs(v).toFixed(1)}`;
+};
+
+function render() {
+  const { home, away, homeRest, awayRest } = state;
+  const board = document.getElementById("board");
+  if (home === away) {
+    board.innerHTML = document.getElementById("board-c").innerHTML = `<tr><td style="padding:24px 0;color:var(--board-muted)">Pick two different teams.</td></tr>`;
+    document.getElementById("board-note").textContent = "";
+    return;
+  }
+  const rows = predict(home, away, homeRest, awayRest);
+  const hPts = rows.map(r => (r.total + r.spread) / 2), aPts = rows.map(r => (r.total - r.spread) / 2);
+  const head = `<tr><th>Team</th>${rows.map(r => `<th class="${r.label === "Game" ? "game" : ""}">${r.label === "Game" ? "FINAL" : r.label}</th>`).join("")}</tr>`;
+  const teamRow = (code, pts, other) => `<tr><td class="team">${code}<small>${NAMES[code] || code}</small></td>${
+    pts.map((p, i) => `<td class="pts ${p > other[i] ? "lead" : ""} ${i === 4 ? "game" : ""}">${Math.round(p)}</td>`).join("")}</tr>`;
+  const winRow = `<tr class="meta"><td>Winner</td>${rows.map((r, i) => {
+    const homeW = r.pHome >= 0.5, p = homeW ? r.pHome : 1 - r.pHome;
+    return `<td class="${i === 4 ? "game" : ""}"><span class="win">${homeW ? home : away} ${Math.round(p * 100)}%<span class="prob ${homeW ? "" : "away-w"}"><i style="width:${(p * 100).toFixed(0)}%"></i></span></span></td>`;
+  }).join("")}</tr>`;
+  const spreadRow = `<tr class="meta"><td>Spread</td>${rows.map((r, i) => `<td class="${i === 4 ? "game" : ""}">${fmtLine(home, r.spread)}</td>`).join("")}</tr>`;
+  const totalRow = `<tr class="meta"><td>Total</td>${rows.map((r, i) => `<td class="${i === 4 ? "game" : ""}">${r.total.toFixed(1)}</td>`).join("")}</tr>`;
+  board.innerHTML = head + teamRow(away, aPts, hPts) + teamRow(home, hPts, aPts) + winRow + spreadRow + totalRow;
+  const sc = (v, o) => v > o ? `<b>${Math.round(v)}</b>` : `${Math.round(v)}`;
+  document.getElementById("board-c").innerHTML =
+    `<tr><th></th><th>${away}–${home}</th><th>Winner</th><th>Spread</th><th>Total</th></tr>` +
+    rows.map((r, i) => {
+      const homeW = r.pHome >= 0.5, p = homeW ? r.pHome : 1 - r.pHome;
+      return `<tr class="${i === 4 ? "game-row" : ""}"><td>${i === 4 ? "FINAL" : r.label}</td>
+        <td class="sc">${sc(aPts[i], hPts[i])}–${sc(hPts[i], aPts[i])}</td>
+        <td class="meta-c"><span class="win">${homeW ? home : away} ${Math.round(p * 100)}%<span class="prob ${homeW ? "" : "away-w"}"><i style="width:${(p * 100).toFixed(0)}%"></i></span></span></td>
+        <td class="meta-c">${fmtLine(home, r.spread)}</td><td class="meta-c">${r.total.toFixed(1)}</td></tr>`;
+    }).join("");
+  document.getElementById("board-note").textContent =
+    `Spread is from ${home}'s side, betting-line style: ${home} −3.5 means ${home} by 3.5. Final adds up the four quarters and leaves out overtime. A quarter can also end tied (about 4% of the time).`;
+}
+
+function restButtons(id, key) {
+  const el = document.getElementById(id);
+  el.innerHTML = REST.map(([v, t]) => `<button type="button" data-v="${v}" aria-pressed="${state[key] === v}">${t}</button>`).join("");
+  el.onclick = e => {
+    const b = e.target.closest("button"); if (!b) return;
+    state[key] = +b.dataset.v;
+    el.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b));
+    render();
+  };
+}
+
+function setup() {
+  const teams = Object.keys(DATA.teams).sort();
+  for (const side of ["away", "home"]) {
+    const sel = document.getElementById(side);
+    sel.innerHTML = teams.map(t => `<option value="${t}">${NAMES[t] || t}</option>`).join("");
+    sel.value = state[side];
+    sel.onchange = () => { state[side] = sel.value; render(); };
+  }
+  restButtons("away-rest", "awayRest");
+  restButtons("home-rest", "homeRest");
+
+  const m = DATA.metrics, res = m.results, pct = v => (v * 100).toFixed(1) + "%";
+  document.getElementById("acc").innerHTML =
+    `<tr><th>Period</th><th>Winner right</th><th>Always pick home</th><th>Spread miss</th><th>Total miss</th></tr>` +
+    Object.entries(res).map(([p, v]) => `<tr><td>${p === "Game (regulation)" ? "Full game" : p}</td>
+      <td class="good">${pct(v.winner_accuracy)}</td><td class="base">${pct(v.winner_accuracy_home_baseline)}</td>
+      <td>${v.spread_mae.toFixed(1)} <span class="base">vs ${v.spread_mae_baseline.toFixed(1)}</span></td>
+      <td>${v.total_mae.toFixed(1)} <span class="base">vs ${v.total_mae_baseline.toFixed(1)}</span></td></tr>`).join("");
+  const season = `${m.test_season}-${String((m.test_season + 1) % 100).padStart(2, "0")}`;
+  document.getElementById("acc-note").textContent =
+    `Tested on all ${m.test_games.toLocaleString()} games of the ${season} regular season, which the model never saw while training on the ${m.train_games.toLocaleString()} games before it. Misses are average points off; the grey number is what you'd miss by always guessing the league average. Single quarters are close to a coin flip, so small edges are expected.`;
+  document.getElementById("through").textContent =
+    `Team form is based on games through ${new Date(DATA.data_through + "T12:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}, the end of the ${season} regular season.`;
+  render();
+}
+setup();
+</script>

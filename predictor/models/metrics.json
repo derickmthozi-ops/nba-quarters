@@ -1,0 +1,62 @@
+{
+  "train_seasons": [
+    2020,
+    2021,
+    2022,
+    2023,
+    2024
+  ],
+  "test_season": 2025,
+  "train_games": 5844,
+  "test_games": 1230,
+  "results": {
+    "Q1": {
+      "spread_mae": 6.671328229453283,
+      "spread_mae_baseline": 6.886620423699104,
+      "total_mae": 6.5632131926165815,
+      "total_mae_baseline": 6.750022815423225,
+      "winner_accuracy": 0.5783645655877342,
+      "winner_accuracy_home_baseline": 0.5212947189097104,
+      "winner_accuracy_confident_third": 0.655440414507772,
+      "tied_quarter_rate": 0.04552845528455285
+    },
+    "Q2": {
+      "spread_mae": 6.80327222153258,
+      "spread_mae_baseline": 6.998909867948781,
+      "total_mae": 6.6441139348685985,
+      "total_mae_baseline": 6.711717667484683,
+      "winner_accuracy": 0.5728727885425442,
+      "winner_accuracy_home_baseline": 0.502106149957877,
+      "winner_accuracy_confident_third": 0.6306532663316583,
+      "tied_quarter_rate": 0.034959349593495934
+    },
+    "Q3": {
+      "spread_mae": 6.821870277673278,
+      "spread_mae_baseline": 6.965404584230647,
+      "total_mae": 6.774485098980226,
+      "total_mae_baseline": 7.025775863508121,
+      "winner_accuracy": 0.5763293310463122,
+      "winner_accuracy_home_baseline": 0.5188679245283019,
+      "winner_accuracy_confident_third": 0.6361323155216285,
+      "tied_quarter_rate": 0.05203252032520325
+    },
+    "Q4": {
+      "spread_mae": 6.516209078062532,
+      "spread_mae_baseline": 6.579438017172778,
+      "total_mae": 7.122986072177692,
+      "total_mae_baseline": 7.3152779864554285,
+      "winner_accuracy": 0.5595238095238095,
+      "winner_accuracy_home_baseline": 0.5272108843537415,
+      "winner_accuracy_confident_third": 0.5786802030456852,
+      "tied_quarter_rate": 0.04390243902439024
+    },
+    "Game (regulation)": {
+      "spread_mae": 11.477444631342166,
+      "spread_mae_baseline": 13.00818684162201,
+      "total_mae": 14.609710851252524,
+      "total_mae_baseline": 15.791931965520886,
+      "winner_accuracy": 0.6777210884353742,
+      "winner_accuracy_home_baseline": 0.5518707482993197
+    }
+  }
+}

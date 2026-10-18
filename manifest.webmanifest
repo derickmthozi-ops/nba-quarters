@@ -1,0 +1,15 @@
+{
+  "name": "NBA Quarter Predictor",
+  "short_name": "Quarters",
+  "description": "Predicted winner, spread and total for each quarter of an NBA game.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#1b2230",
+  "theme_color": "#1b2230",
+  "icons": [
+    {"src": "icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png"},
+    {"src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}
