@@ -3,7 +3,8 @@
 Usage:  python export_web.py web/model.json web/reference_predictions.json
 """
 import sys, json
-import joblib, numpy as np
+import joblib, numpy as np, pandas as pd
+from pathlib import Path
 from features import form_columns, matchup_row
 b=joblib.load('models/models.joblib')
 m=b['models']; out={'features':b['features'],'form_cols':form_columns(),'data_through':b['data_through'],'models':{}}
@@ -16,6 +17,18 @@ for k,v in m.items():
     out['models'][k]={'w':[round(float(x),8) for x in w],'b':round(c,8),**({'sd':round(v['resid_sd'],4)} if 'resid_sd' in v else {})}
 f=b['team_form']; out['teams']={t:[round(float(f.at[t,c]),5) for c in form_columns()] for t in f.index}
 out['metrics']=json.load(open('models/metrics.json'))
+# Upcoming games for the next two weeks, with each team's days of rest before that game.
+if Path('data/schedule.csv').exists():
+    ls=pd.read_csv('data/line_scores.csv'); sched=pd.read_csv('data/schedule.csv')
+    through=pd.Timestamp(b['data_through']); horizon=through+pd.Timedelta(days=15)
+    sched['d']=pd.to_datetime(sched['date'])
+    days=pd.concat([pd.DataFrame({'team':ls[s],'d':pd.to_datetime(ls['date'])}) for s in ('home','away')]+
+                   [pd.DataFrame({'team':sched[s],'d':sched['d']}) for s in ('home','away')]).drop_duplicates()
+    def rest(team,d):
+        prev=days[(days.team==team)&(days.d<d)].d.max()
+        return 4 if pd.isna(prev) else int(min(4,max(1,(d-prev).days)))
+    up=sched[(sched.d>through)&(sched.d<=horizon)&sched.home.isin(f.index)&sched.away.isin(f.index)]
+    out['upcoming']=[{'date':r.date,'tip':r.tipoff_utc.replace(' ','T'),'home':r.home,'away':r.away,'hr':rest(r.home,r.d),'ar':rest(r.away,r.d)} for r in up.itertuples()]
 json.dump(out,open(sys.argv[1],'w'),separators=(',',':'))
 # reference predictions
 ref=[]

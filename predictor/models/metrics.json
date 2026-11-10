@@ -11,52 +11,107 @@
   "test_games": 1230,
   "results": {
     "Q1": {
-      "spread_mae": 6.671328229453283,
+      "spread_mae": 6.6575386689146585,
       "spread_mae_baseline": 6.886620423699104,
-      "total_mae": 6.5632131926165815,
+      "total_mae": 6.542084710087092,
       "total_mae_baseline": 6.750022815423225,
-      "winner_accuracy": 0.5783645655877342,
+      "winner_accuracy": 0.5877342419080068,
       "winner_accuracy_home_baseline": 0.5212947189097104,
-      "winner_accuracy_confident_third": 0.655440414507772,
+      "winner_accuracy_confident_third": 0.6683804627249358,
       "tied_quarter_rate": 0.04552845528455285
     },
     "Q2": {
-      "spread_mae": 6.80327222153258,
+      "spread_mae": 6.803967320487428,
       "spread_mae_baseline": 6.998909867948781,
-      "total_mae": 6.6441139348685985,
+      "total_mae": 6.650297246380826,
       "total_mae_baseline": 6.711717667484683,
-      "winner_accuracy": 0.5728727885425442,
+      "winner_accuracy": 0.5636057287278854,
       "winner_accuracy_home_baseline": 0.502106149957877,
-      "winner_accuracy_confident_third": 0.6306532663316583,
+      "winner_accuracy_confident_third": 0.6347607052896725,
       "tied_quarter_rate": 0.034959349593495934
     },
     "Q3": {
-      "spread_mae": 6.821870277673278,
+      "spread_mae": 6.825654711994202,
       "spread_mae_baseline": 6.965404584230647,
-      "total_mae": 6.774485098980226,
+      "total_mae": 6.769479198563618,
       "total_mae_baseline": 7.025775863508121,
-      "winner_accuracy": 0.5763293310463122,
+      "winner_accuracy": 0.5728987993138936,
       "winner_accuracy_home_baseline": 0.5188679245283019,
-      "winner_accuracy_confident_third": 0.6361323155216285,
+      "winner_accuracy_confident_third": 0.6177215189873417,
       "tied_quarter_rate": 0.05203252032520325
     },
     "Q4": {
-      "spread_mae": 6.516209078062532,
+      "spread_mae": 6.505420853296857,
       "spread_mae_baseline": 6.579438017172778,
-      "total_mae": 7.122986072177692,
+      "total_mae": 7.133586339056895,
       "total_mae_baseline": 7.3152779864554285,
-      "winner_accuracy": 0.5595238095238095,
+      "winner_accuracy": 0.5544217687074829,
       "winner_accuracy_home_baseline": 0.5272108843537415,
-      "winner_accuracy_confident_third": 0.5786802030456852,
+      "winner_accuracy_confident_third": 0.5892857142857143,
       "tied_quarter_rate": 0.04390243902439024
     },
     "Game (regulation)": {
-      "spread_mae": 11.477444631342166,
+      "spread_mae": 11.458058272820725,
       "spread_mae_baseline": 13.00818684162201,
-      "total_mae": 14.609710851252524,
+      "total_mae": 14.633586476647196,
       "total_mae_baseline": 15.791931965520886,
-      "winner_accuracy": 0.6777210884353742,
+      "winner_accuracy": 0.6819727891156463,
       "winner_accuracy_home_baseline": 0.5518707482993197
+    }
+  },
+  "current_season": {
+    "season": 2026,
+    "games": 154,
+    "through": "2026-11-09",
+    "results": {
+      "Q1": {
+        "spread_mae": 6.978414423938683,
+        "spread_mae_baseline": 7.045781332040874,
+        "total_mae": 6.783035329488818,
+        "total_mae_baseline": 6.524828437042177,
+        "winner_accuracy": 0.54421768707483,
+        "winner_accuracy_home_baseline": 0.4897959183673469,
+        "winner_accuracy_confident_third": 0.5714285714285714,
+        "tied_quarter_rate": 0.045454545454545456
+      },
+      "Q2": {
+        "spread_mae": 7.313560054251815,
+        "spread_mae_baseline": 7.723582609078792,
+        "total_mae": 7.189513955862514,
+        "total_mae_baseline": 7.303162486368594,
+        "winner_accuracy": 0.6301369863013698,
+        "winner_accuracy_home_baseline": 0.4452054794520548,
+        "winner_accuracy_confident_third": 0.7551020408163265,
+        "tied_quarter_rate": 0.05194805194805195
+      },
+      "Q3": {
+        "spread_mae": 7.402999484706624,
+        "spread_mae_baseline": 7.53438419087274,
+        "total_mae": 7.253580420355471,
+        "total_mae_baseline": 7.113940201726461,
+        "winner_accuracy": 0.6137931034482759,
+        "winner_accuracy_home_baseline": 0.6344827586206897,
+        "winner_accuracy_confident_third": 0.5957446808510638,
+        "tied_quarter_rate": 0.05844155844155844
+      },
+      "Q4": {
+        "spread_mae": 6.448014278043784,
+        "spread_mae_baseline": 6.41893856779353,
+        "total_mae": 7.1646059485366616,
+        "total_mae_baseline": 6.862795530734462,
+        "winner_accuracy": 0.5034965034965035,
+        "winner_accuracy_home_baseline": 0.5174825174825175,
+        "winner_accuracy_confident_third": 0.6170212765957447,
+        "tied_quarter_rate": 0.07142857142857142
+      },
+      "Game (regulation)": {
+        "spread_mae": 11.864742797430393,
+        "spread_mae_baseline": 13.490005470921501,
+        "total_mae": 14.913744437858272,
+        "total_mae_baseline": 14.70706336355191,
+        "winner_accuracy": 0.684931506849315,
+        "winner_accuracy_home_baseline": 0.5136986301369864
+      }
     }
   }
 }

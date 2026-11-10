@@ -11,6 +11,7 @@ QUARTERS = (1, 2, 3, 4)
 SPANS = (8, 30)  # short-term form and longer-term strength, in games
 STATS = [f"pts_q{q}" for q in QUARTERS] + [f"opp_q{q}" for q in QUARTERS] + ["margin", "win"]
 MIN_PRIOR_GAMES = 10
+BLEND_K = 5  # games into a season at which this season's average counts as much as long-term form
 
 
 def team_games(ls: pd.DataFrame) -> pd.DataFrame:
@@ -38,12 +39,19 @@ def _state_after_each_game(tg: pd.DataFrame) -> pd.DataFrame:
         ew = g[STATS].transform(lambda s: s.ewm(span=span, min_periods=1).mean())
         for c in STATS:
             out[f"{c}_e{span}"] = ew[c]
+    # This-season average blended with long-term form: early in a season the long-term
+    # numbers dominate, and after a few weeks the current season takes over.
+    gs = tg.groupby(["team", "season"])
+    w = (gs.cumcount() + 1) / (gs.cumcount() + 1 + BLEND_K)
+    for c in STATS:
+        season_avg = gs[c].transform(lambda s: s.expanding().mean())
+        out[f"{c}_bl"] = w * season_avg + (1 - w) * out[f"{c}_e{max(SPANS)}"]
     out["n_games"] = g.cumcount() + 1
     return out
 
 
 def form_columns():
-    return [f"{c}_e{s}" for s in SPANS for c in STATS]
+    return [f"{c}_e{s}" for s in SPANS for c in STATS] + [f"{c}_bl" for c in STATS]
 
 
 def pregame_features(ls: pd.DataFrame) -> pd.DataFrame:

@@ -6,8 +6,10 @@ For each quarter (Q1-Q4) three models:
   winner  - probability the home team wins the quarter (logistic regression;
             tied quarters are left out of training)
 
-Evaluation trains on every season before the last one and tests on the
-last (most recent) season. The saved models are then refit on all seasons.
+Evaluation trains on every season before the last complete one and tests on
+that full season. If the current season has started, it is also scored on its
+games so far (trained on all earlier seasons). The saved models are then refit
+on every game, including the current season.
 
 Usage:  python train.py
 Output: models/models.joblib, models/metrics.json
@@ -87,15 +89,23 @@ def main():
     ls = pd.read_csv(ROOT / "data" / "line_scores.csv")
     games = pregame_features(ls).merge(targets(ls), on="game_id")
     X = feature_columns(games)
-    test_season = games["season"].max()
+    per_season = ls.groupby("season").size()
+    test_season = int(per_season[per_season >= 1000].index.max())  # last complete season
     train, test = games[games["season"] < test_season], games[games["season"] == test_season]
 
     metrics = {
         "train_seasons": sorted(int(s) for s in train["season"].unique()),
-        "test_season": int(test_season),
+        "test_season": test_season,
         "train_games": len(train), "test_games": len(test),
         "results": evaluate(fit_models(train, X), train, test, X),
     }
+    current = int(games["season"].max())
+    if current > test_season:
+        tr, te = games[games["season"] < current], games[games["season"] == current]
+        metrics["current_season"] = {
+            "season": current, "games": len(te), "through": str(ls["date"].max()),
+            "results": evaluate(fit_models(tr, X), tr, te, X),
+        }
     print(json.dumps(metrics, indent=2))
 
     final = fit_models(games, X)

@@ -5,7 +5,7 @@ Writes web/nba-quarter-predictor.html (Claude artifact) and ../index.html (the h
 import sys
 from pathlib import Path
 
-d = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).parent
+d = (Path(sys.argv[1]) if len(sys.argv) > 1 else Path(__file__).parent).resolve()
 page = (d / "page.template.html").read_text().replace("__MODEL__", (d / "model.json").read_text())
 (d / "nba-quarter-predictor.html").write_text(page)
 

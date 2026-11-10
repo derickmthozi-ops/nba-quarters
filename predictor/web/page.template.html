@@ -107,6 +107,23 @@ table.ls.compact { display: none; min-width: 0; }
   table.ls.wide { display: none; }
   table.ls.compact { display: table; }
 }
+.slate { display: flex; flex-direction: column; gap: 10px; }
+.slate-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.days { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+.days button, .games button {
+  font: 500 13px var(--body); color: var(--ink); background: var(--panel); border: 1px solid var(--line);
+  border-radius: 6px; padding: 7px 10px; cursor: pointer; white-space: nowrap;
+}
+.days button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.games { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.games button { display: flex; justify-content: space-between; gap: 8px; text-align: left; font-variant-numeric: tabular-nums; }
+.games button .tm { font: 600 15px var(--display); letter-spacing: 0.04em; }
+.games button .tm em { font-style: normal; color: var(--muted); font-weight: 500; padding: 0 4px; }
+.games button .tt { color: var(--muted); font-size: 12px; align-self: center; }
+.games button[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.acc-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.acc-tabs button { font: 500 13px var(--body); color: var(--muted); background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; cursor: pointer; }
+.acc-tabs button[aria-pressed="true"] { color: var(--ink); border-color: var(--ink); }
 </style>
 
 <main>
@@ -115,6 +132,12 @@ table.ls.compact { display: none; min-width: 0; }
     <h1>NBA Quarter Predictor</h1>
     <p class="sub">Pick a matchup to see who the model expects to win each quarter, by how much, and how many points get scored.</p>
   </header>
+
+  <section class="slate" id="slate" aria-label="Upcoming games" hidden>
+    <div class="slate-head"><h2>Upcoming games</h2><span class="label" id="slate-note"></span></div>
+    <div class="days" id="days" role="group" aria-label="Game day"></div>
+    <div class="games" id="games"></div>
+  </section>
 
   <section class="controls" aria-label="Matchup">
     <div class="side away">
@@ -137,10 +160,11 @@ table.ls.compact { display: none; min-width: 0; }
 
   <section class="acc">
     <h2>How accurate is it?</h2>
+    <div class="acc-tabs" id="acc-tabs" role="group" aria-label="Test period"></div>
     <div class="acc-scroll"><table class="at-t" id="acc"></table></div>
     <p id="acc-note"></p>
     <ul class="limits">
-      <li>Uses team form only: points scored and allowed in each quarter over roughly the last 8 and 30 games, plus days of rest. Injuries, lineups and trades are not included.</li>
+      <li>Uses team form only: points scored and allowed in each quarter over roughly the last 8 and 30 games, this season's averages, plus days of rest. Injuries, lineups and trades are not included.</li>
       <li id="through"></li>
     </ul>
   </section>
@@ -248,18 +272,65 @@ function setup() {
   restButtons("away-rest", "awayRest");
   restButtons("home-rest", "homeRest");
 
-  const m = DATA.metrics, res = m.results, pct = v => (v * 100).toFixed(1) + "%";
-  document.getElementById("acc").innerHTML =
-    `<tr><th>Period</th><th>Winner right</th><th>Always pick home</th><th>Spread miss</th><th>Total miss</th></tr>` +
-    Object.entries(res).map(([p, v]) => `<tr><td>${p === "Game (regulation)" ? "Full game" : p}</td>
-      <td class="good">${pct(v.winner_accuracy)}</td><td class="base">${pct(v.winner_accuracy_home_baseline)}</td>
-      <td>${v.spread_mae.toFixed(1)} <span class="base">vs ${v.spread_mae_baseline.toFixed(1)}</span></td>
-      <td>${v.total_mae.toFixed(1)} <span class="base">vs ${v.total_mae_baseline.toFixed(1)}</span></td></tr>`).join("");
-  const season = `${m.test_season}-${String((m.test_season + 1) % 100).padStart(2, "0")}`;
-  document.getElementById("acc-note").textContent =
-    `Tested on all ${m.test_games.toLocaleString()} games of the ${season} regular season, which the model never saw while training on the ${m.train_games.toLocaleString()} games before it. Misses are average points off; the grey number is what you'd miss by always guessing the league average. Single quarters are close to a coin flip, so small edges are expected.`;
+  const m = DATA.metrics, pct = v => (v * 100).toFixed(1) + "%";
+  const seasonName = y => `${y}-${String((y + 1) % 100).padStart(2, "0")}`;
+  const fmtDate = (d, opts) => new Date(d + "T12:00:00").toLocaleDateString("en-US", opts);
+  const tests = [];
+  if (m.current_season) tests.push({ key: "now", label: `This season so far`, res: m.current_season.results,
+    note: `Scored on the ${m.current_season.games} games of ${seasonName(m.current_season.season)} played through ${fmtDate(m.current_season.through, { month: "long", day: "numeric" })}. Each prediction only used games played before it. This is a small sample, so expect these numbers to move a few points either way.` });
+  tests.push({ key: "full", label: `Last full season (${seasonName(m.test_season)})`, res: m.results,
+    note: `Tested on all ${m.test_games.toLocaleString()} games of the ${seasonName(m.test_season)} regular season, which the model never saw while training on the ${m.train_games.toLocaleString()} games before it.` });
+  const showAcc = key => {
+    const t = tests.find(x => x.key === key);
+    document.getElementById("acc").innerHTML =
+      `<tr><th>Period</th><th>Winner right</th><th>Always pick home</th><th>Spread miss</th><th>Total miss</th></tr>` +
+      Object.entries(t.res).map(([p, v]) => `<tr><td>${p === "Game (regulation)" ? "Full game" : p}</td>
+        <td class="good">${pct(v.winner_accuracy)}</td><td class="base">${pct(v.winner_accuracy_home_baseline)}</td>
+        <td>${v.spread_mae.toFixed(1)} <span class="base">vs ${v.spread_mae_baseline.toFixed(1)}</span></td>
+        <td>${v.total_mae.toFixed(1)} <span class="base">vs ${v.total_mae_baseline.toFixed(1)}</span></td></tr>`).join("");
+    document.getElementById("acc-note").textContent = t.note +
+      " Misses are average points off; the grey number is what you'd miss by always guessing the league average. Single quarters are close to a coin flip, so small edges are expected.";
+    document.querySelectorAll("#acc-tabs button").forEach(b => b.setAttribute("aria-pressed", b.dataset.k === key));
+  };
+  const tabs = document.getElementById("acc-tabs");
+  tabs.innerHTML = tests.map(t => `<button type="button" data-k="${t.key}">${t.label}</button>`).join("");
+  tabs.onclick = e => { const b = e.target.closest("button"); if (b) showAcc(b.dataset.k); };
+  tabs.hidden = tests.length < 2;
+  showAcc(tests[0].key);
   document.getElementById("through").textContent =
-    `Team form is based on games through ${new Date(DATA.data_through + "T12:00:00").toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}, the end of the ${season} regular season.`;
+    `Team form includes games through ${fmtDate(DATA.data_through, { month: "long", day: "numeric", year: "numeric" })}.`;
+
+  // Upcoming games: tap one to load both teams and their days of rest.
+  const up = DATA.upcoming || [];
+  if (up.length) {
+    const slate = document.getElementById("slate"), daysEl = document.getElementById("days"), gamesEl = document.getElementById("games");
+    const dates = [...new Set(up.map(g => g.date))];
+    let day = dates[0], picked = null;
+    const tip = g => { const t = new Date(g.tip); return isNaN(t) ? "" : t.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); };
+    const drawGames = () => {
+      daysEl.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.d === day));
+      gamesEl.innerHTML = up.map((g, i) => [g, i]).filter(([g]) => g.date === day).map(([g, i]) =>
+        `<button type="button" data-i="${i}" aria-pressed="${i === picked}"><span class="tm">${g.away}<em>at</em>${g.home}</span><span class="tt">${tip(g)}</span></button>`).join("");
+    };
+    daysEl.innerHTML = dates.map(d => `<button type="button" data-d="${d}">${fmtDate(d, { weekday: "short", month: "short", day: "numeric" })}</button>`).join("");
+    daysEl.onclick = e => { const b = e.target.closest("button"); if (b) { day = b.dataset.d; drawGames(); } };
+    gamesEl.onclick = e => {
+      const b = e.target.closest("button"); if (!b) return;
+      picked = +b.dataset.i; const g = up[picked];
+      Object.assign(state, { home: g.home, away: g.away, homeRest: g.hr, awayRest: g.ar });
+      document.getElementById("home").value = g.home; document.getElementById("away").value = g.away;
+      restButtons("away-rest", "awayRest"); restButtons("home-rest", "homeRest");
+      drawGames(); render();
+      document.getElementById("board-c").closest(".board").scrollIntoView({ behavior: "smooth", block: "nearest" });
+    };
+    document.getElementById("slate-note").textContent = "Tap a game";
+    slate.hidden = false;
+    const g0 = up[0]; picked = 0;
+    Object.assign(state, { home: g0.home, away: g0.away, homeRest: g0.hr, awayRest: g0.ar });
+    for (const side of ["away", "home"]) document.getElementById(side).value = state[side];
+    restButtons("away-rest", "awayRest"); restButtons("home-rest", "homeRest");
+    drawGames();
+  }
   render();
 }
 setup();
