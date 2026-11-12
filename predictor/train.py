@@ -19,6 +19,7 @@ from pathlib import Path
 
 import joblib
 import numpy as np
+from scipy.stats import norm
 import pandas as pd
 from sklearn.linear_model import LogisticRegression, RidgeCV
 from sklearn.pipeline import make_pipeline
@@ -27,6 +28,8 @@ from sklearn.preprocessing import StandardScaler
 from features import QUARTERS, feature_columns, latest_team_form, pregame_features, targets
 
 ROOT = Path(__file__).parent
+STRONG_GAME = 0.60     # full-game pick confidence that counts as a strong pick
+STRONG_QUARTER = 0.65  # same for a single quarter
 
 
 def fit_models(df: pd.DataFrame, X: list) -> dict:
@@ -49,6 +52,7 @@ def fit_models(df: pd.DataFrame, X: list) -> dict:
 
 def evaluate(models: dict, train: pd.DataFrame, test: pd.DataFrame, X: list) -> dict:
     out = {}
+    pooled = {"right": 0, "strong": 0, "strong_right": 0, "decided": 0}
     for q in QUARTERS:
         r = {}
         for kind in ("spread", "total"):
@@ -67,6 +71,11 @@ def evaluate(models: dict, train: pd.DataFrame, test: pd.DataFrame, X: list) -> 
         top = decided & (conf >= np.quantile(conf, 2 / 3))
         r["winner_accuracy_confident_third"] = float((pick[top] == y[top]).mean())
         r["tied_quarter_rate"] = float((~decided).mean())
+        strong = decided & (np.maximum(p, 1 - p) >= STRONG_QUARTER)
+        r["strong_accuracy"] = float((pick[strong] == y[strong]).mean()) if strong.any() else None
+        r["strong_share"] = float(strong.sum() / decided.sum())
+        pooled["right"] += int((pick[decided] == y[decided]).sum()); pooled["decided"] += int(decided.sum())
+        pooled["strong"] += int(strong.sum()); pooled["strong_right"] += int((pick[strong] == y[strong]).sum())
         out[f"Q{q}"] = r
 
     # Whole game from summing the quarter predictions (regulation only).
@@ -82,6 +91,16 @@ def evaluate(models: dict, train: pd.DataFrame, test: pd.DataFrame, X: list) -> 
         "winner_accuracy": float((np.sign(sp) == np.sign(y_sp))[y_sp != 0].mean()),
         "winner_accuracy_home_baseline": float((y_sp[y_sp != 0] > 0).mean()),
     }
+    # Strong full-game picks: win probability from the summed spread, as the app shows it.
+    p_home = norm.cdf(sp / models["game_spread_resid_sd"])
+    decided = (y_sp != 0).values
+    strong = decided & (np.maximum(p_home, 1 - p_home) >= STRONG_GAME)
+    out["Game (regulation)"]["strong_accuracy"] = float((np.sign(sp) == np.sign(y_sp))[strong].mean())
+    out["Game (regulation)"]["strong_share"] = float(strong.sum() / decided.sum())
+    # All quarters together.
+    out["All quarters"] = {"winner_accuracy": pooled["right"] / pooled["decided"],
+                           "strong_accuracy": pooled["strong_right"] / max(1, pooled["strong"]),
+                           "strong_share": pooled["strong"] / pooled["decided"]}
     return out
 
 
@@ -106,6 +125,8 @@ def main():
             "season": current, "games": len(te), "through": str(ls["date"].max()),
             "results": evaluate(fit_models(tr, X), tr, te, X),
         }
+
+    metrics["strong_thresholds"] = {"game": STRONG_GAME, "quarter": STRONG_QUARTER}
     print(json.dumps(metrics, indent=2))
 
     final = fit_models(games, X)

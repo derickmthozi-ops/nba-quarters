@@ -67,6 +67,13 @@ Scoring is down this season (about 227 points a game vs 231 in 2025-26), and the
 over-predicts totals by about 1 point per quarter; that shrinks as more of this season's games come in.
 See `models/metrics.json` for everything.
 
+## Strong picks and toss-ups
+
+The app marks a pick **Strong** when the model gives it at least 60% (full game) or 65% (a quarter),
+and **Toss-up** under 55%. On the 2025-26 test season, strong full-game picks were right 76% of the
+time (58% of games qualified) and strong quarter picks 65% (14% of quarters). Thresholds live in
+`train.py` (`STRONG_GAME`, `STRONG_QUARTER`); `models/metrics.json` has the rates per quarter.
+
 ## Limits
 
 - Team form only, no player injuries, lineups or trades.

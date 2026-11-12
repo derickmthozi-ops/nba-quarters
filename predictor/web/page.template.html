@@ -124,6 +124,12 @@ table.ls.compact { display: none; min-width: 0; }
 .acc-tabs { display: flex; gap: 6px; flex-wrap: wrap; }
 .acc-tabs button { font: 500 13px var(--body); color: var(--muted); background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; cursor: pointer; }
 .acc-tabs button[aria-pressed="true"] { color: var(--ink); border-color: var(--ink); }
+.tag { display: inline-block; font: 600 10px var(--body); letter-spacing: 0.06em; text-transform: uppercase; padding: 1px 6px; border-radius: 999px; vertical-align: middle; }
+.tag.strong { background: #ffb37f; color: #1b2230; }
+.tag.tossup { background: rgba(255,255,255,0.14); color: var(--board-muted); }
+.win.tossup { opacity: 0.55; }
+.win.strong { font-weight: 600; }
+.at-t th.st, .at-t td.st { white-space: nowrap; }
 </style>
 
 <main>
@@ -155,6 +161,7 @@ table.ls.compact { display: none; min-width: 0; }
 
   <section class="board" aria-live="polite">
     <div class="board-scroll"><table class="ls wide" id="board"></table><table class="ls compact" id="board-c"></table></div>
+    <p class="board-note" id="tiers"></p>
     <p class="board-note" id="board-note"></p>
   </section>
 
@@ -189,6 +196,7 @@ function features(home, away, homeRest, awayRest) {
   f.away_b2b = awayRest <= 1 ? 1 : 0;
   return DATA.features.map(n => f[n]);
 }
+const pct0 = v => Math.round(v * 100) + "%";
 const linear = (m, x) => m.b + m.w.reduce((s, w, i) => s + w * x[i], 0);
 const sigmoid = z => 1 / (1 + Math.exp(-z));
 function normCdf(x) { // Abramowitz-Stegun approximation
@@ -216,6 +224,16 @@ const fmtLine = (team, homeSpread) => {
   return Math.abs(v) < 0.05 ? "PK" : `${team} ${v > 0 ? "+" : "−"}${Math.abs(v).toFixed(1)}`;
 };
 
+// Strong picks: confidence at which picks have been right about 3 in 4 (game) or 2 in 3 (quarter).
+const TH = (DATA.metrics && DATA.metrics.strong_thresholds) || { game: 0.6, quarter: 0.65 };
+const TOSSUP = 0.55;
+function tier(p, i) { return p >= (i === 4 ? TH.game : TH.quarter) ? "strong" : p < TOSSUP ? "tossup" : "lean"; }
+function winCell(r, i, home, away) {
+  const homeW = r.pHome >= 0.5, p = homeW ? r.pHome : 1 - r.pHome, t = tier(p, i);
+  const tag = t === "strong" ? `<span class="tag strong">Strong</span>` : t === "tossup" ? `<span class="tag tossup">Toss-up</span>` : "";
+  return `<span class="win ${t}">${homeW ? home : away} ${Math.round(p * 100)}%<span class="prob ${homeW ? "" : "away-w"}"><i style="width:${(p * 100).toFixed(0)}%"></i></span>${tag}</span>`;
+}
+
 function render() {
   const { home, away, homeRest, awayRest } = state;
   const board = document.getElementById("board");
@@ -230,8 +248,7 @@ function render() {
   const teamRow = (code, pts, other) => `<tr><td class="team">${code}<small>${NAMES[code] || code}</small></td>${
     pts.map((p, i) => `<td class="pts ${p > other[i] ? "lead" : ""} ${i === 4 ? "game" : ""}">${Math.round(p)}</td>`).join("")}</tr>`;
   const winRow = `<tr class="meta"><td>Winner</td>${rows.map((r, i) => {
-    const homeW = r.pHome >= 0.5, p = homeW ? r.pHome : 1 - r.pHome;
-    return `<td class="${i === 4 ? "game" : ""}"><span class="win">${homeW ? home : away} ${Math.round(p * 100)}%<span class="prob ${homeW ? "" : "away-w"}"><i style="width:${(p * 100).toFixed(0)}%"></i></span></span></td>`;
+    return `<td class="${i === 4 ? "game" : ""}">${winCell(r, i, home, away)}</td>`;
   }).join("")}</tr>`;
   const spreadRow = `<tr class="meta"><td>Spread</td>${rows.map((r, i) => `<td class="${i === 4 ? "game" : ""}">${fmtLine(home, r.spread)}</td>`).join("")}</tr>`;
   const totalRow = `<tr class="meta"><td>Total</td>${rows.map((r, i) => `<td class="${i === 4 ? "game" : ""}">${r.total.toFixed(1)}</td>`).join("")}</tr>`;
@@ -240,12 +257,15 @@ function render() {
   document.getElementById("board-c").innerHTML =
     `<tr><th></th><th>${away}–${home}</th><th>Winner</th><th>Spread</th><th>Total</th></tr>` +
     rows.map((r, i) => {
-      const homeW = r.pHome >= 0.5, p = homeW ? r.pHome : 1 - r.pHome;
       return `<tr class="${i === 4 ? "game-row" : ""}"><td>${i === 4 ? "FINAL" : r.label}</td>
         <td class="sc">${sc(aPts[i], hPts[i])}–${sc(hPts[i], aPts[i])}</td>
-        <td class="meta-c"><span class="win">${homeW ? home : away} ${Math.round(p * 100)}%<span class="prob ${homeW ? "" : "away-w"}"><i style="width:${(p * 100).toFixed(0)}%"></i></span></span></td>
+        <td class="meta-c">${winCell(r, i, home, away)}</td>
         <td class="meta-c">${fmtLine(home, r.spread)}</td><td class="meta-c">${r.total.toFixed(1)}</td></tr>`;
     }).join("");
+  const R = DATA.metrics.results, G = R["Game (regulation)"], AQ = R["All quarters"];
+  document.getElementById("tiers").innerHTML = G && G.strong_accuracy ?
+    `<span class="tag strong">Strong</span> full-game picks at ${Math.round(TH.game * 100)}%+ were right ${pct0(G.strong_accuracy)} of the time last season, and quarter picks at ${Math.round(TH.quarter * 100)}%+ were right ${pct0(AQ.strong_accuracy)}. ` +
+    `<span class="tag tossup">Toss-up</span> picks under ${Math.round(TOSSUP * 100)}% are close to a coin flip.` : "";
   document.getElementById("board-note").textContent =
     `Spread is from ${home}'s side, betting-line style: ${home} −3.5 means ${home} by 3.5. Final adds up the four quarters and leaves out overtime. A quarter can also end tied (about 4% of the time).`;
 }
@@ -283,13 +303,15 @@ function setup() {
   const showAcc = key => {
     const t = tests.find(x => x.key === key);
     document.getElementById("acc").innerHTML =
-      `<tr><th>Period</th><th>Winner right</th><th>Always pick home</th><th>Spread miss</th><th>Total miss</th></tr>` +
-      Object.entries(t.res).map(([p, v]) => `<tr><td>${p === "Game (regulation)" ? "Full game" : p}</td>
-        <td class="good">${pct(v.winner_accuracy)}</td><td class="base">${pct(v.winner_accuracy_home_baseline)}</td>
+      `<tr><th>Period</th><th>Winner right</th><th class="st">Strong picks right</th><th>Always pick home</th><th>Spread miss</th><th>Total miss</th></tr>` +
+      Object.entries(t.res).filter(([p, v]) => v.spread_mae !== undefined).map(([p, v]) => `<tr><td>${p === "Game (regulation)" ? "Full game" : p}</td>
+        <td class="good">${pct(v.winner_accuracy)}</td>
+        <td class="st">${v.strong_accuracy != null ? `${pct0(v.strong_accuracy)} <span class="base">of ${pct0(v.strong_share)}</span>` : "–"}</td>
+        <td class="base">${pct(v.winner_accuracy_home_baseline)}</td>
         <td>${v.spread_mae.toFixed(1)} <span class="base">vs ${v.spread_mae_baseline.toFixed(1)}</span></td>
         <td>${v.total_mae.toFixed(1)} <span class="base">vs ${v.total_mae_baseline.toFixed(1)}</span></td></tr>`).join("");
     document.getElementById("acc-note").textContent = t.note +
-      " Misses are average points off; the grey number is what you'd miss by always guessing the league average. Single quarters are close to a coin flip, so small edges are expected.";
+      " Strong picks right shows how often the strong picks were right, and what share of picks were strong. Misses are average points off; the grey number is what you'd miss by always guessing the league average. Single quarters are close to a coin flip, so small edges are expected.";
     document.querySelectorAll("#acc-tabs button").forEach(b => b.setAttribute("aria-pressed", b.dataset.k === key));
   };
   const tabs = document.getElementById("acc-tabs");
